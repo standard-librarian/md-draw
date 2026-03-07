@@ -1,0 +1,15 @@
+{
+  "name": "standalone-tldraw-importer",
+  "private": true,
+  "packageManager": "pnpm@10.6.2",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
