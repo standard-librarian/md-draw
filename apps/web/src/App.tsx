@@ -13,10 +13,10 @@ import {
 	useEditor,
 } from 'tldraw'
 import 'tldraw/tldraw.css'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
 	createSlide,
-	getSlides,
+	goToAdjacentSlide,
 	getSlideBounds,
 	inferCurrentSlide,
 	moveToSlide,
@@ -38,6 +38,27 @@ function App() {
 	const [isSlidesPanelOpen, setIsSlidesPanelOpen] = useState(false)
 	const [value, setValue] = useState(SAMPLE)
 	const [submitErrors, setSubmitErrors] = useState<string[]>([])
+
+	useEffect(() => {
+		if (!editor) return
+
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (!isSlidesPanelOpen) return
+			if (event.defaultPrevented) return
+			if (event.metaKey || event.ctrlKey || event.altKey) return
+			if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+			if (shouldIgnoreSlideShortcut(event.target)) return
+			if (editor.getEditingShapeId() !== null) return
+
+			const moved = goToAdjacentSlide(editor, event.key === 'ArrowRight' ? 'next' : 'previous')
+			if (!moved) return
+
+			event.preventDefault()
+		}
+
+		window.addEventListener('keydown', onKeyDown)
+		return () => window.removeEventListener('keydown', onKeyDown)
+	}, [editor, isSlidesPanelOpen])
 
 	const handleImport = () => {
 		if (!editor) return
@@ -123,13 +144,7 @@ function App() {
 						id: 'next-slide',
 						label: 'Next slide',
 						onSelect: () => {
-							const slides = getSlides(editor)
-							const current = inferCurrentSlide(editor)
-							if (!current || slides.length === 0) return
-							const index = slides.findIndex((slide) => slide.id === current.id)
-							const nextSlide = slides[index + 1] ?? slides[0]
-							if (nextSlide) {
-								moveToSlide(editor, nextSlide)
+							if (goToAdjacentSlide(editor, 'next')) {
 								setIsSlidesPanelOpen(true)
 							}
 						},
@@ -138,13 +153,7 @@ function App() {
 						id: 'previous-slide',
 						label: 'Previous slide',
 						onSelect: () => {
-							const slides = getSlides(editor)
-							const current = inferCurrentSlide(editor)
-							if (!current || slides.length === 0) return
-							const index = slides.findIndex((slide) => slide.id === current.id)
-							const previousSlide = slides[index - 1] ?? slides[slides.length - 1]
-							if (previousSlide) {
-								moveToSlide(editor, previousSlide)
+							if (goToAdjacentSlide(editor, 'previous')) {
 								setIsSlidesPanelOpen(true)
 							}
 						},
@@ -186,6 +195,12 @@ function App() {
 			</Tldraw>
 		</div>
 	)
+}
+
+function shouldIgnoreSlideShortcut(target: EventTarget | null) {
+	if (!(target instanceof HTMLElement)) return false
+	if (target.isContentEditable) return true
+	return Boolean(target.closest('input, textarea, select, button, [contenteditable="true"], [contenteditable=""], [role="textbox"]'))
 }
 
 function SlidesMainMenuContent() {

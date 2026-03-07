@@ -138,6 +138,24 @@ export function getSlideBounds(editor: Editor, slide: SlideShape) {
 	return { x: bounds.minX + 36, y: bounds.minY + 36, w: bounds.width - 72, h: bounds.height - 72 }
 }
 
+function getAdjacentSlide(editor: Editor, direction: 'next' | 'previous') {
+	const slides = getSlides(editor)
+	const current = inferCurrentSlide(editor)
+	if (!current || slides.length === 0) return null
+	const index = slides.findIndex((slide) => slide.id === current.id)
+	if (index === -1) return slides[0] ?? null
+	return direction === 'next'
+		? (slides[index + 1] ?? slides[0] ?? null)
+		: (slides[index - 1] ?? slides[slides.length - 1] ?? null)
+}
+
+export function goToAdjacentSlide(editor: Editor, direction: 'next' | 'previous') {
+	const slide = getAdjacentSlide(editor, direction)
+	if (!slide) return false
+	moveToSlide(editor, slide)
+	return true
+}
+
 export function useSlideActions() {
 	const editor = useEditor()
 	return useMemo(
@@ -147,18 +165,10 @@ export function useSlideActions() {
 				moveToSlide(editor, slide)
 			},
 			nextSlide() {
-				const slides = getSlides(editor)
-				const current = inferCurrentSlide(editor)
-				if (!current || slides.length === 0) return
-				const index = slides.findIndex((slide) => slide.id === current.id)
-				moveToSlide(editor, slides[index + 1] ?? slides[0])
+				goToAdjacentSlide(editor, 'next')
 			},
 			previousSlide() {
-				const slides = getSlides(editor)
-				const current = inferCurrentSlide(editor)
-				if (!current || slides.length === 0) return
-				const index = slides.findIndex((slide) => slide.id === current.id)
-				moveToSlide(editor, slides[index - 1] ?? slides[slides.length - 1])
+				goToAdjacentSlide(editor, 'previous')
 			},
 		}),
 		[editor]
