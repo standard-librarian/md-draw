@@ -1,5 +1,5 @@
 {
-  "name": "standalone-tldraw-importer",
+  "name": "md-draw",
   "private": true,
   "packageManager": "pnpm@10.6.2",
   "scripts": {

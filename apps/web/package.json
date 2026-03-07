@@ -9,7 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@standalone/importer": "workspace:*",
+    "@md-draw/importer": "workspace:*",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "tldraw": "^4.4.0"

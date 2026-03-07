@@ -1,4 +1,4 @@
-import { importMarkdownTextModel, importStructuredContent, parseStructuredImport } from '@standalone/importer'
+import { importMarkdownTextModel, importStructuredContent, parseStructuredImport } from '@md-draw/importer'
 import { Tldraw, useEditor } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { useMemo, useState } from 'react'
@@ -20,7 +20,7 @@ function App() {
 		<div className="app">
 			<Tldraw
 				shapeUtils={[SlideShapeUtil]}
-				persistenceKey="standalone_importer_slides"
+				persistenceKey="md_draw_slides"
 				onMount={(editor) => {
 					setEditor(editor)
 					if (getSlides(editor).length === 0) {
@@ -71,7 +71,7 @@ function App() {
 										targetBounds: getSlideBounds(editor, currentSlide),
 									})
 									if (!result.createdShapeIds.length) {
-										setSubmitErrors(result.errors.map((error) => error.message))
+										setSubmitErrors(result.errors.map((error: { message: string }) => error.message))
 										return
 									}
 									moveToSlide(editor, currentSlide)
