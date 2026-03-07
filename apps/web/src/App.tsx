@@ -1,8 +1,30 @@
 import { importMarkdownTextModel, importStructuredContent, parseStructuredImport } from '@md-draw/importer'
-import { Tldraw, useEditor } from 'tldraw'
+import {
+	DefaultMainMenu,
+	DefaultMainMenuContent,
+	Editor,
+	TLComponents,
+	TLUiMainMenuProps,
+	TLUiOverrides,
+	Tldraw,
+	TldrawUiMenuActionItem,
+	TldrawUiMenuGroup,
+	TldrawUiMenuSubmenu,
+	useEditor,
+} from 'tldraw'
 import 'tldraw/tldraw.css'
 import { useMemo, useState } from 'react'
-import { createSlide, getSlideBounds, getSlides, inferCurrentSlide, moveToSlide, SlideShapeUtil, useCurrentSlide, useSlideActions, useSlides } from './slides'
+import {
+	createSlide,
+	getSlides,
+	getSlideBounds,
+	inferCurrentSlide,
+	moveToSlide,
+	SlideShapeUtil,
+	useCurrentSlide,
+	useSlideActions,
+	useSlides,
+} from './slides'
 import { getSectionsForSlides } from './slideText'
 
 const SAMPLE = `flowchart TD
@@ -11,72 +33,152 @@ const SAMPLE = `flowchart TD
   C -->|Yes| E[Phase 1: Build Web MVP]`
 
 function App() {
-	const [editor, setEditor] = useState<any>(null)
-	const [isOpen, setIsOpen] = useState(false)
+	const [editor, setEditor] = useState<Editor | null>(null)
+	const [isImportOpen, setIsImportOpen] = useState(false)
+	const [isSlidesPanelOpen, setIsSlidesPanelOpen] = useState(false)
 	const [value, setValue] = useState(SAMPLE)
 	const [submitErrors, setSubmitErrors] = useState<string[]>([])
+
+	const handleImport = () => {
+		if (!editor) return
+
+		const parseResult = parseStructuredImport(value)
+		const currentSlide = inferCurrentSlide(editor) ?? createSlide(editor)
+		if (parseResult.format === 'markdown-text' && parseResult.model.sections.length > 1) {
+			const sections = getSectionsForSlides(parseResult.model.sections)
+			const createdIds: string[] = []
+			for (let i = 0; i < sections.length; i++) {
+				const slide = i === 0 ? currentSlide : createSlide(editor)
+				const result = importMarkdownTextModel(
+					editor,
+					{ sections: [sections[i]] },
+					{ targetBounds: getSlideBounds(editor, slide) }
+				)
+				createdIds.push(...result.createdShapeIds)
+			}
+			if (!createdIds.length) {
+				setSubmitErrors(['Nothing importable was found.'])
+				return
+			}
+			moveToSlide(editor, currentSlide)
+			setIsImportOpen(false)
+			setIsSlidesPanelOpen(true)
+			return
+		}
+
+		const result = importStructuredContent(editor, value, {
+			targetBounds: getSlideBounds(editor, currentSlide),
+		})
+		if (!result.createdShapeIds.length) {
+			setSubmitErrors(result.errors.map((error: { message: string }) => error.message))
+			return
+		}
+		moveToSlide(editor, currentSlide)
+		setIsImportOpen(false)
+		setIsSlidesPanelOpen(true)
+	}
+
+	const components = useMemo<TLComponents>(
+		() => ({
+			MainMenu: function MainMenu(props: TLUiMainMenuProps) {
+				return (
+					<DefaultMainMenu {...props}>
+						<DefaultMainMenuContent />
+						<SlidesMainMenuContent />
+					</DefaultMainMenu>
+				)
+			},
+		}),
+		[]
+	)
+
+	const overrides = useMemo<TLUiOverrides>(
+		() => ({
+			actions(editor, actions) {
+				return {
+					...actions,
+					'toggle-slides-panel': {
+						id: 'toggle-slides-panel',
+						label: 'Open slides panel',
+						onSelect: () => setIsSlidesPanelOpen((open) => !open),
+					},
+					'open-import-dialog': {
+						id: 'open-import-dialog',
+						label: 'Import content',
+						onSelect: () => {
+							setSubmitErrors([])
+							setIsImportOpen(true)
+						},
+					},
+					'new-slide': {
+						id: 'new-slide',
+						label: 'New slide',
+						onSelect: () => {
+							const slide = createSlide(editor)
+							moveToSlide(editor, slide)
+							setIsSlidesPanelOpen(true)
+						},
+					},
+					'next-slide': {
+						id: 'next-slide',
+						label: 'Next slide',
+						onSelect: () => {
+							const slides = getSlides(editor)
+							const current = inferCurrentSlide(editor)
+							if (!current || slides.length === 0) return
+							const index = slides.findIndex((slide) => slide.id === current.id)
+							const nextSlide = slides[index + 1] ?? slides[0]
+							if (nextSlide) {
+								moveToSlide(editor, nextSlide)
+								setIsSlidesPanelOpen(true)
+							}
+						},
+					},
+					'previous-slide': {
+						id: 'previous-slide',
+						label: 'Previous slide',
+						onSelect: () => {
+							const slides = getSlides(editor)
+							const current = inferCurrentSlide(editor)
+							if (!current || slides.length === 0) return
+							const index = slides.findIndex((slide) => slide.id === current.id)
+							const previousSlide = slides[index - 1] ?? slides[slides.length - 1]
+							if (previousSlide) {
+								moveToSlide(editor, previousSlide)
+								setIsSlidesPanelOpen(true)
+							}
+						},
+					},
+				}
+			},
+		}),
+		[]
+	)
 
 	return (
 		<div className="app">
 			<Tldraw
+				components={components}
+				overrides={overrides}
 				shapeUtils={[SlideShapeUtil]}
 				persistenceKey="md_draw_slides"
 				onMount={(editor) => {
 					setEditor(editor)
-					if (getSlides(editor).length === 0) {
-						const slide = createSlide(editor, 100)
-						moveToSlide(editor, slide)
-					}
 				}}
 			>
 				{editor ? (
 					<>
-						<OverlayControls onOpen={() => setIsOpen(true)} />
-						<SlidesPanel />
-						{isOpen ? (
+						{isSlidesPanelOpen ? <SlidesPanel onClose={() => setIsSlidesPanelOpen(false)} /> : null}
+						{isImportOpen ? (
 							<ImportDialog
-								editor={editor}
 								value={value}
 								submitErrors={submitErrors}
 								onChange={(next) => {
 									setValue(next)
 									setSubmitErrors([])
 								}}
-								onClose={() => setIsOpen(false)}
-								onImport={() => {
-									const parseResult = parseStructuredImport(value)
-									const currentSlide = inferCurrentSlide(editor) ?? createSlide(editor)
-									if (parseResult.format === 'markdown-text' && parseResult.model.sections.length > 1) {
-										const sections = getSectionsForSlides(parseResult.model.sections)
-										const createdIds: string[] = []
-										for (let i = 0; i < sections.length; i++) {
-											const slide = i === 0 ? currentSlide : createSlide(editor)
-											const result = importMarkdownTextModel(
-												editor,
-												{ sections: [sections[i]] },
-												{ targetBounds: getSlideBounds(editor, slide) }
-											)
-											createdIds.push(...result.createdShapeIds)
-										}
-										if (!createdIds.length) {
-											setSubmitErrors(['Nothing importable was found.'])
-											return
-										}
-										moveToSlide(editor, currentSlide)
-										setIsOpen(false)
-										return
-									}
-
-									const result = importStructuredContent(editor, value, {
-										targetBounds: getSlideBounds(editor, currentSlide),
-									})
-									if (!result.createdShapeIds.length) {
-										setSubmitErrors(result.errors.map((error: { message: string }) => error.message))
-										return
-									}
-									moveToSlide(editor, currentSlide)
-									setIsOpen(false)
-								}}
+								onClose={() => setIsImportOpen(false)}
+								onImport={handleImport}
 							/>
 						) : null}
 					</>
@@ -86,37 +188,50 @@ function App() {
 	)
 }
 
-function OverlayControls({ onOpen }: { onOpen: () => void }) {
-	const actions = useSlideActions()
+function SlidesMainMenuContent() {
+	const slides = useSlides()
+
 	return (
-		<div className="overlay">
-			<button className="button" onClick={onOpen}>
-				Import
-			</button>
-			<button className="button secondary" onClick={actions.previousSlide}>
-				Prev
-			</button>
-			<button className="button secondary" onClick={actions.nextSlide}>
-				Next
-			</button>
-			<button className="button secondary" onClick={actions.addSlide}>
-				New slide
-			</button>
-		</div>
+		<TldrawUiMenuGroup id="slides-group">
+			<TldrawUiMenuSubmenu id="slides" label="Slides">
+				<TldrawUiMenuGroup id="slides-actions">
+					<TldrawUiMenuActionItem actionId="toggle-slides-panel" />
+					<TldrawUiMenuActionItem actionId="open-import-dialog" />
+					<TldrawUiMenuActionItem actionId="new-slide" disabled={false} />
+					<TldrawUiMenuActionItem actionId="next-slide" disabled={slides.length === 0} />
+					<TldrawUiMenuActionItem actionId="previous-slide" disabled={slides.length === 0} />
+				</TldrawUiMenuGroup>
+			</TldrawUiMenuSubmenu>
+		</TldrawUiMenuGroup>
 	)
 }
 
-function SlidesPanel() {
+function SlidesPanel({ onClose }: { onClose: () => void }) {
 	const slides = useSlides()
 	const currentSlide = useCurrentSlide()
+	const actions = useSlideActions()
 	return (
 		<div className="slides-panel">
-			<div style={{ fontWeight: 600 }}>Slides</div>
-			<div className="slides-list">
-				{slides.map((slide, index) => (
-					<SlideButton key={slide.id} slideId={slide.id} index={index} active={slide.id === currentSlide?.id} />
-				))}
+			<div className="slides-panel-header">
+				<div style={{ fontWeight: 600 }}>Slides</div>
+				<button className="button secondary small" onClick={onClose}>
+					Close
+				</button>
 			</div>
+			{slides.length === 0 ? (
+				<div className="slides-empty">
+					<p style={{ margin: 0 }}>No slides yet. Create one when you want slide-based imports or navigation.</p>
+					<button className="button" onClick={actions.addSlide}>
+						Create first slide
+					</button>
+				</div>
+			) : (
+				<div className="slides-list">
+					{slides.map((slide, index) => (
+						<SlideButton key={slide.id} slideId={slide.id} index={index} active={slide.id === currentSlide?.id} />
+					))}
+				</div>
+			)}
 		</div>
 	)
 }
@@ -142,14 +257,12 @@ function SlideButton({ slideId, index, active }: { slideId: string; index: numbe
 }
 
 function ImportDialog({
-	editor,
 	value,
 	submitErrors,
 	onChange,
 	onClose,
 	onImport,
 }: {
-	editor: any
 	value: string
 	submitErrors: string[]
 	onChange: (value: string) => void
@@ -187,7 +300,7 @@ function ImportDialog({
 				<MessageList title="Warnings" items={parseResult.warnings} tone="warning" />
 				<div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
 					<button className="button" disabled={!hasImportableContent} onClick={onImport}>
-						Import into current slide
+						Import into slides
 					</button>
 				</div>
 			</div>
