@@ -21,7 +21,6 @@ export function parseStructuredImport(input: string): StructuredParseResult {
 	}
 
 	if (/^flowchart\b/i.test(firstMeaningfulLine)) return parseMermaidFlowchart(normalizedInput)
-	if (/^sequenceDiagram\b/i.test(firstMeaningfulLine)) return parseMermaidSequence(normalizedInput)
 	if (/^gantt\b/i.test(firstMeaningfulLine)) return parseMermaidGantt(normalizedInput)
 	if (looksLikeMarkdownTable(lines)) return parseMarkdownTable(normalizedInput)
 	return parseMarkdownText(normalizedInput)
