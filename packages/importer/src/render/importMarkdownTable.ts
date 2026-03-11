@@ -16,8 +16,21 @@ export function importMarkdownTableModel(editor: Editor, model: MarkdownTableMod
 	const columnWidths = model.columns.map((_, columnIndex) =>
 		clamp(Math.max(...model.rows.map((row) => getTextBox(editor, row[columnIndex] ?? '', { paddingX: CELL_PADDING_X, paddingY: CELL_PADDING_Y, minWidth: MIN_COLUMN_WIDTH }).w)), MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH)
 	)
+
+	// ⚡ Bolt Optimization: Cache text measurements to avoid redundant DOM reads during render
+	// Markdown tables measure O(rows * cols) text boxes. We compute these once here and store
+	// both the outer height (for row sizing) and the inner text dimensions (for alignment).
+	const cellMeasures: { w: number; h: number }[][] = []
 	const rowHeights = model.rows.map((row, rowIndex) => {
-		const measuredCells = row.map((cell, columnIndex) => getTextBox(editor, cell ?? '', { maxWidth: columnWidths[columnIndex] - CELL_PADDING_X * 2, paddingX: CELL_PADDING_X, paddingY: CELL_PADDING_Y, minHeight: MIN_ROW_HEIGHT }).h)
+		const rowMeasures: { w: number; h: number }[] = []
+		const measuredCells: number[] = []
+		for (let columnIndex = 0; columnIndex < model.columns.length; columnIndex++) {
+			const cell = row[columnIndex] ?? ''
+			const box = getTextBox(editor, cell, { maxWidth: columnWidths[columnIndex] - CELL_PADDING_X * 2, paddingX: CELL_PADDING_X, paddingY: CELL_PADDING_Y, minHeight: MIN_ROW_HEIGHT })
+			rowMeasures.push({ w: box.textW, h: box.textH })
+			measuredCells.push(box.h)
+		}
+		cellMeasures.push(rowMeasures)
 		return Math.max(MIN_ROW_HEIGHT, ...measuredCells, rowIndex === model.headerRowIndex ? 54 : MIN_ROW_HEIGHT)
 	})
 
@@ -58,7 +71,7 @@ export function importMarkdownTableModel(editor: Editor, model: MarkdownTableMod
 			const text = model.rows[rowIndex][columnIndex] ?? ''
 			const cellWidth = columnWidths[columnIndex]
 			const cellHeight = rowHeights[rowIndex]
-			const textMeasure = measureText(editor, text, { maxWidth: cellWidth - CELL_PADDING_X * 2 })
+			const textMeasure = cellMeasures[rowIndex][columnIndex]
 			let textX = x + CELL_PADDING_X
 			if (model.columns[columnIndex]?.align === 'middle') textX = x + (cellWidth - textMeasure.w) / 2
 			else if (model.columns[columnIndex]?.align === 'end') textX = x + cellWidth - CELL_PADDING_X - textMeasure.w

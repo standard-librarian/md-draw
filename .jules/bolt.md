@@ -1,0 +1,5 @@
+## 2024-06-25 - Redundant synchronous DOM text measurements during render loops
+
+**Learning:** In Tldraw, `measureText` and `getTextBox` are synchronous operations that interact directly with the DOM. When rendering complex structures like Markdown Tables and Gantt charts, calling them twice per node (once for sizing, once for alignment/drawing) causes significant performance degradation via redundant DOM reads and layout thrashing. Because Markdown tables might contain missing cells (irregular grid), iterating up to the maximum columns rather than the current row length when computing measurements is required to avoid crashing during the render pass.
+
+**Action:** Always inspect loops containing `measureText` or `getTextBox` to verify that their outputs are cached in the data model (e.g. `labelBox.textH`, custom row layout maps). Do not throw away dimensions derived during layout calculation if they will be needed again during rendering! Ensure your caching structure identically matches the final render iteration limits (i.e. use `model.columns.length` rather than `row.length`).
