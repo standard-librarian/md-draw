@@ -33,6 +33,37 @@ describe('parseStructuredImport', () => {
 		expect(result.model.nodes.find((node) => node.id === 'F')?.label).toContain('Student dashboard')
 	})
 
+	it('detects Mermaid flowcharts inside fenced code blocks', () => {
+		const result = parseStructuredImport("```mermaid\nflowchart TD\nA-->B\n```")
+		expect(result.format).toBe('flowchart')
+	})
+
+	it('parses the requested fenced Mermaid flowchart example', () => {
+		const result = parseStructuredImport(`\`\`\`mermaid
+flowchart TD
+    A[Two different models]
+
+    A --> B[Centralized IdP model]
+    A --> C[Local OS auth model]
+
+    B --> B1[Keycloak]
+    B --> B2[ZITADEL]
+    B --> B3[Auth0 / Okta]
+    B --> B4[OIDC / SAML / OAuth2]
+
+    C --> C1[Local machine user account]
+    C --> C2[OS verifies password]
+    C --> C3[App issues session token]
+
+    C3 --> C4[VibeTunnel]
+\`\`\``)
+		if (result.format !== 'flowchart') throw new Error('expected flowchart')
+		expect(result.errors).toHaveLength(0)
+		expect(result.model.nodes).toHaveLength(11)
+		expect(result.model.edges).toHaveLength(10)
+		expect(result.model.nodes.find((node) => node.id === 'B4')?.label).toBe('OIDC / SAML / OAuth2')
+	})
+
 	it('parses sequence participants, messages, and alt branches', () => {
 		const result = parseStructuredImport(`sequenceDiagram
     participant U as User
