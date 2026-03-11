@@ -3,6 +3,7 @@ import { parseMarkdownTable } from './parseMarkdownTable'
 import { parseMarkdownText } from './parseMarkdownText'
 import { parseMermaidFlowchart } from './parseMermaidFlowchart'
 import { parseMermaidGantt } from './parseMermaidGantt'
+import { parseMermaidSequence } from './parseMermaidSequence'
 
 export function parseStructuredImport(input: string): StructuredParseResult {
 	const lines = input.replace(/\r\n/g, '\n').split('\n').map((line) => line.trim()).filter(Boolean)
@@ -19,6 +20,7 @@ export function parseStructuredImport(input: string): StructuredParseResult {
 	}
 
 	if (/^flowchart\b/i.test(firstMeaningfulLine)) return parseMermaidFlowchart(input)
+	if (/^sequenceDiagram\b/i.test(firstMeaningfulLine)) return parseMermaidSequence(input)
 	if (/^gantt\b/i.test(firstMeaningfulLine)) return parseMermaidGantt(input)
 	if (looksLikeMarkdownTable(lines)) return parseMarkdownTable(input)
 	return parseMarkdownText(input)

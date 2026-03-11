@@ -63,6 +63,36 @@ describe('importStructuredContent', () => {
     Next.js + Go API + PostgreSQL]`)
 		expect(result.errors).toHaveLength(0)
 	})
+
+	it('imports Mermaid sequence diagrams with participants, messages, and alt branches', () => {
+		const editor = createMockEditor()
+		const result = importStructuredContent(
+			editor as any,
+			`sequenceDiagram
+    participant U as User
+    participant B as Browser UI
+    participant V as VibeTunnel
+    participant P as PAM / OS auth
+
+    U->>B: Enter system password
+    B->>V: Login request
+    V->>P: Verify local user credentials
+    P-->>V: Success / failure
+
+    alt Success
+        V-->>B: Issue JWT
+        B-->>U: Authenticated session
+    else Failure
+        V-->>B: Reject login
+    end`
+		)
+
+		expect(result.createdShapeIds.length).toBeGreaterThan(0)
+		expect(editor.getCurrentPageShapes().filter((shape: any) => shape.type === 'arrow')).toHaveLength(7)
+		expect(editor.getCurrentPageShapes().filter((shape: any) => shape.type === 'geo').length).toBeGreaterThanOrEqual(5)
+		expect(editor.getCurrentPageShapes().filter((shape: any) => shape.type === 'line').length).toBeGreaterThanOrEqual(5)
+		expect(editor.getCurrentPageShapes().filter((shape: any) => shape.type === 'text').length).toBeGreaterThanOrEqual(2)
+	})
 })
 
 function createMockEditor() {

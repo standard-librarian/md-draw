@@ -10,6 +10,10 @@ describe('parseStructuredImport', () => {
 		expect(parseStructuredImport(`gantt\nsection Build\nTask :a1, 2026-03-08, 2d`).format).toBe('gantt')
 	})
 
+	it('detects sequence diagrams', () => {
+		expect(parseStructuredImport(`sequenceDiagram\nAlice->>Bob: Hello`).format).toBe('sequence')
+	})
+
 	it('detects markdown tables before markdown text', () => {
 		expect(parseStructuredImport(`| A | B |\n| --- | --- |\n| 1 | 2 |`).format).toBe('markdown-table')
 	})
@@ -27,6 +31,43 @@ describe('parseStructuredImport', () => {
 		if (result.format !== 'flowchart') throw new Error('expected flowchart')
 		expect(result.errors).toHaveLength(0)
 		expect(result.model.nodes.find((node) => node.id === 'F')?.label).toContain('Student dashboard')
+	})
+
+	it('parses sequence participants, messages, and alt branches', () => {
+		const result = parseStructuredImport(`sequenceDiagram
+    participant U as User
+    participant B as Browser UI
+    participant V as VibeTunnel
+    participant P as PAM / OS auth
+
+    U->>B: Enter system password
+    B->>V: Login request
+    V->>P: Verify local user credentials
+    P-->>V: Success / failure
+
+    alt Success
+        V-->>B: Issue JWT
+        B-->>U: Authenticated session
+    else Failure
+        V-->>B: Reject login
+    end`)
+		if (result.format !== 'sequence') throw new Error('expected sequence')
+		expect(result.errors).toHaveLength(0)
+		expect(result.model.participants).toEqual([
+			{ id: 'U', label: 'User' },
+			{ id: 'B', label: 'Browser UI' },
+			{ id: 'V', label: 'VibeTunnel' },
+			{ id: 'P', label: 'PAM / OS auth' },
+		])
+		expect(result.model.messages).toHaveLength(7)
+		expect(result.model.blocks).toHaveLength(1)
+		expect(result.model.blocks[0]).toMatchObject({
+			type: 'alt',
+			branches: [
+				{ label: 'Success', messageIds: [result.model.messages[4].id, result.model.messages[5].id] },
+				{ label: 'Failure', messageIds: [result.model.messages[6].id] },
+			],
+		})
 	})
 
 	it('parses markdown text into sections', () => {

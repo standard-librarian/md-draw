@@ -1,7 +1,7 @@
 import type { TLShapeId } from 'tldraw'
 
 export type DiagramDirection = 'TD' | 'LR'
-export type StructuredImportFormat = 'flowchart' | 'gantt' | 'markdown-table' | 'markdown-text'
+export type StructuredImportFormat = 'flowchart' | 'sequence' | 'gantt' | 'markdown-table' | 'markdown-text'
 export type NodeKind = 'process' | 'decision' | 'round' | 'terminator' | 'unknown'
 
 export interface DiagramNode {
@@ -68,6 +68,38 @@ export interface GanttModel {
 	tasks: GanttTask[]
 }
 
+export interface SequenceParticipant {
+	id: string
+	label: string
+}
+
+export type SequenceMessageStyle = 'solid' | 'dashed'
+
+export interface SequenceMessage {
+	id: string
+	from: string
+	to: string
+	label: string
+	style: SequenceMessageStyle
+}
+
+export interface SequenceBranch {
+	label: string
+	messageIds: string[]
+}
+
+export interface SequenceBlock {
+	id: string
+	type: 'alt'
+	branches: SequenceBranch[]
+}
+
+export interface SequenceDiagramModel {
+	participants: SequenceParticipant[]
+	messages: SequenceMessage[]
+	blocks: SequenceBlock[]
+}
+
 export interface MarkdownTableColumn {
 	align?: 'start' | 'middle' | 'end'
 }
@@ -118,6 +150,14 @@ export interface GanttParseResult {
 	errors: ImportMessage[]
 }
 
+export interface SequenceParseResult {
+	ok: boolean
+	format: 'sequence'
+	model: SequenceDiagramModel
+	warnings: ImportMessage[]
+	errors: ImportMessage[]
+}
+
 export interface MarkdownTableParseResult {
 	ok: boolean
 	format: 'markdown-table'
@@ -144,6 +184,7 @@ export interface UnsupportedParseResult {
 
 export type StructuredParseResult =
 	| FlowchartParseResult
+	| SequenceParseResult
 	| GanttParseResult
 	| MarkdownTableParseResult
 	| MarkdownTextParseResult
