@@ -8,6 +8,17 @@ const MIN_COLUMN_WIDTH = 120
 const MAX_COLUMN_WIDTH = 260
 const MIN_ROW_HEIGHT = 48
 
+/**
+ * Imports a Markdown table model into the editor as a grouped set of shapes positioned and sized to match the table layout.
+ *
+ * Validates the model, computes column widths and row heights, lays out cells (including header styling and alignment), creates geometric and text shapes for the table and grid lines, centers the table inside the provided bounds or the current viewport, groups the created shapes, and returns the import result.
+ *
+ * @param editor - The editor instance used to measure text and create shapes.
+ * @param model - The parsed Markdown table model containing columns, rows, and alignment information.
+ * @param baseResult - Base import result to merge with; used to report errors and overall status.
+ * @param targetBounds - Optional destination bounds to center the imported table within; if omitted, the editor viewport bounds are used.
+ * @returns An ImportResult whose `ok` field is true when no errors were recorded and whose `createdShapeIds` lists the IDs of all created shapes (empty on failure).
+ */
 export function importMarkdownTableModel(editor: Editor, model: MarkdownTableModel, baseResult: Omit<ImportResult, 'createdShapeIds'>, targetBounds?: BoxLike): ImportResult {
 	if (model.rows.length < 2 || model.columns.length === 0) {
 		return { ...baseResult, ok: false, errors: baseResult.errors.length ? baseResult.errors : [{ message: 'Nothing importable was found in the Markdown table input.' }], createdShapeIds: [] }
@@ -16,8 +27,21 @@ export function importMarkdownTableModel(editor: Editor, model: MarkdownTableMod
 	const columnWidths = model.columns.map((_, columnIndex) =>
 		clamp(Math.max(...model.rows.map((row) => getTextBox(editor, row[columnIndex] ?? '', { paddingX: CELL_PADDING_X, paddingY: CELL_PADDING_Y, minWidth: MIN_COLUMN_WIDTH }).w)), MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH)
 	)
+
+	// ⚡ Bolt Optimization: Cache text measurements to avoid redundant DOM reads during render
+	// Markdown tables measure O(rows * cols) text boxes. We compute these once here and store
+	// both the outer height (for row sizing) and the inner text dimensions (for alignment).
+	const cellMeasures: { w: number; h: number }[][] = []
 	const rowHeights = model.rows.map((row, rowIndex) => {
-		const measuredCells = row.map((cell, columnIndex) => getTextBox(editor, cell ?? '', { maxWidth: columnWidths[columnIndex] - CELL_PADDING_X * 2, paddingX: CELL_PADDING_X, paddingY: CELL_PADDING_Y, minHeight: MIN_ROW_HEIGHT }).h)
+		const rowMeasures: { w: number; h: number }[] = []
+		const measuredCells: number[] = []
+		for (let columnIndex = 0; columnIndex < model.columns.length; columnIndex++) {
+			const cell = row[columnIndex] ?? ''
+			const box = getTextBox(editor, cell, { maxWidth: columnWidths[columnIndex] - CELL_PADDING_X * 2, paddingX: CELL_PADDING_X, paddingY: CELL_PADDING_Y, minHeight: MIN_ROW_HEIGHT })
+			rowMeasures.push({ w: box.textW, h: box.textH })
+			measuredCells.push(box.h)
+		}
+		cellMeasures.push(rowMeasures)
 		return Math.max(MIN_ROW_HEIGHT, ...measuredCells, rowIndex === model.headerRowIndex ? 54 : MIN_ROW_HEIGHT)
 	})
 
@@ -58,7 +82,7 @@ export function importMarkdownTableModel(editor: Editor, model: MarkdownTableMod
 			const text = model.rows[rowIndex][columnIndex] ?? ''
 			const cellWidth = columnWidths[columnIndex]
 			const cellHeight = rowHeights[rowIndex]
-			const textMeasure = measureText(editor, text, { maxWidth: cellWidth - CELL_PADDING_X * 2 })
+			const textMeasure = cellMeasures[rowIndex][columnIndex]
 			let textX = x + CELL_PADDING_X
 			if (model.columns[columnIndex]?.align === 'middle') textX = x + (cellWidth - textMeasure.w) / 2
 			else if (model.columns[columnIndex]?.align === 'end') textX = x + cellWidth - CELL_PADDING_X - textMeasure.w
