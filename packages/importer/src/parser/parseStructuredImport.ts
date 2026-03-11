@@ -3,6 +3,7 @@ import { parseMarkdownTable } from './parseMarkdownTable'
 import { parseMarkdownText } from './parseMarkdownText'
 import { parseMermaidFlowchart } from './parseMermaidFlowchart'
 import { parseMermaidGantt } from './parseMermaidGantt'
+import { parseMermaidSequence } from './parseMermaidSequence'
 
 export function parseStructuredImport(input: string): StructuredParseResult {
 	const normalizedInput = normalizeStructuredImportInput(input)

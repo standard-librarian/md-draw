@@ -288,6 +288,8 @@ function ImportDialog({
 	const hasImportableContent =
 		parseResult.format === 'flowchart'
 			? parseResult.model.nodes.length > 0
+			: parseResult.format === 'sequence'
+				? parseResult.model.messages.length > 0
 			: parseResult.format === 'gantt'
 				? parseResult.model.tasks.length > 0
 				: parseResult.format === 'markdown-table'
@@ -305,7 +307,7 @@ function ImportDialog({
 						Close
 					</button>
 				</div>
-				<p style={{ marginTop: 0 }}>Supported: Mermaid flowcharts, Mermaid gantt, Markdown tables, and Markdown text.</p>
+				<p style={{ marginTop: 0 }}>Supported: Mermaid flowcharts, Mermaid sequence diagrams, Mermaid gantt, Markdown tables, and Markdown text.</p>
 				<div style={{ fontSize: 12, color: '#6b7280', marginBottom: 10 }}>
 					Detected format: {parseResult.format ?? 'unknown'}
 				</div>
