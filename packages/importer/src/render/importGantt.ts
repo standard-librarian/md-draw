@@ -30,7 +30,7 @@ export function importGanttModel(editor: Editor, model: GanttModel, baseResult: 
 
 	type Row =
 		| { type: 'section'; label: string; y: number; h: number }
-		| { type: 'task'; task: GanttModel['tasks'][number]; y: number; h: number; barX: number; barW: number }
+		| { type: 'task'; task: GanttModel['tasks'][number]; y: number; h: number; barX: number; barW: number; labelTextHeight: number }
 
 	const rows: Row[] = []
 	let currentY = 0
@@ -49,7 +49,10 @@ export function importGanttModel(editor: Editor, model: GanttModel, baseResult: 
 			const labelBox = getTextBox(editor, task.label, { maxWidth: leftColumnWidth - LABEL_PADDING_X * 2, paddingX: LABEL_PADDING_X, paddingY: LABEL_PADDING_Y, minHeight: MIN_ROW_HEIGHT })
 			const rowHeight = Math.max(MIN_ROW_HEIGHT, labelBox.h)
 			const startOffsetDays = daysBetween(timelineStart, task.startDate)
-			rows.push({ type: 'task', task, y: currentY, h: rowHeight, barX: leftColumnWidth + startOffsetDays * dayWidth, barW: Math.max(dayWidth, task.durationDays * dayWidth) })
+
+			// ⚡ Bolt Optimization: Cache textH so we don't have to call measureText() again
+			// in the secondary drawing loop for this task's label.
+			rows.push({ type: 'task', task, y: currentY, h: rowHeight, barX: leftColumnWidth + startOffsetDays * dayWidth, barW: Math.max(dayWidth, task.durationDays * dayWidth), labelTextHeight: labelBox.textH })
 			currentY += rowHeight
 		}
 		currentY += SECTION_GAP
@@ -87,7 +90,7 @@ export function importGanttModel(editor: Editor, model: GanttModel, baseResult: 
 		createdShapeIds.push(labelId, barId)
 		taskShapeIds.set(row.task.id, barId)
 		const rowTop = offset.y + row.y
-		const labelTextHeight = measureText(editor, row.task.label, { maxWidth: leftColumnWidth - LABEL_PADDING_X * 2 }).h
+		const labelTextHeight = row.labelTextHeight
 		const labelY = rowTop + Math.max(0, (row.h - labelTextHeight) / 2)
 		const barY = rowTop + Math.max(0, (row.h - BAR_HEIGHT) / 2)
 		const shouldLabelBar = row.barW >= 170
