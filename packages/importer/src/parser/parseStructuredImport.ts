@@ -6,7 +6,7 @@ import { parseMermaidGantt } from './parseMermaidGantt'
 
 export function parseStructuredImport(input: string): StructuredParseResult {
 	const normalizedInput = normalizeStructuredImportInput(input)
-	const lines = normalizedInput.replace(/\r\n/g, '\n').split('\n').map((line) => line.trim()).filter(Boolean)
+	const lines = normalizedInput.split('\n').map((line) => line.trim()).filter(Boolean)
 	const firstMeaningfulLine = lines.find((line) => !line.startsWith('%%'))
 
 	if (!firstMeaningfulLine) {
@@ -32,6 +32,6 @@ function looksLikeMarkdownTable(lines: string[]) {
 
 export function normalizeStructuredImportInput(input: string) {
 	const normalized = input.replace(/\r\n/g, '\n')
-	const match = /^\s*(```|~~~)mermaid[^\n]*\n([\s\S]*?)\n\1\s*$/.exec(normalized)
-	return match ? match[2] : input
+	const match = /^\s*(```|~~~)mermaid[^\n]*\n([\s\S]*?)\n?\1\s*$/.exec(normalized)
+	return match ? match[2] : normalized
 }
