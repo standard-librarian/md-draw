@@ -1,6 +1,6 @@
-import { Editor, TLShapeId, createBindingId } from 'tldraw'
+import { Editor, TLShapeId, createBindingId, toRichText } from 'tldraw'
 import { BoxLike, ImportResult, SequenceBlock, SequenceDiagramModel } from '../model'
-import { parseMermaidSequence } from '../parser/parseMermaidSequence'
+import { DEFAULT_SEQUENCE_ALT_LABEL, parseMermaidSequence } from '../parser/parseMermaidSequence'
 import { clamp, createGeoShape, createId, createLineShape, createTextShape, getCenteredOffset, getTextBox, groupImportedShapes } from './shared'
 
 const PARTICIPANT_PADDING_X = 16
@@ -70,7 +70,7 @@ function insertSequenceDiagram(editor: Editor, model: SequenceDiagramModel, targ
 				id: boxId,
 				x: centerX - box.w / 2,
 				y: offset.y,
-				props: { geo: 'rectangle', w: box.w, h: box.h, fill: 'none', richText: { content: [] } },
+				props: { geo: 'rectangle', w: box.w, h: box.h, fill: 'none', richText: toRichText('') },
 			}),
 			createLineShape(editor, {
 				id: lifelineId,
@@ -126,7 +126,7 @@ function insertSequenceDiagram(editor: Editor, model: SequenceDiagramModel, targ
 					start: { x: 0, y: 0 },
 					end: { x: endX - startX, y: 0 },
 					dash: message.style === 'dashed' ? 'dashed' : arrowDefaultProps.dash,
-					richText: editor.getShapeUtil('text') ? createTextShape(editor, { id: createId(), x: 0, y: 0, text: message.label }).props.richText : arrowDefaultProps.richText,
+					richText: toRichText(message.label),
 				},
 			})
 			bindings.push(
@@ -135,7 +135,7 @@ function insertSequenceDiagram(editor: Editor, model: SequenceDiagramModel, targ
 					type: 'arrow' as const,
 					fromId: arrowId,
 					toId: fromId,
-					props: { terminal: 'start' as const, normalizedAnchor: { x: startX <= endX ? 0.5 : 0.5, y: 1 }, isExact: false, isPrecise: false, snap: 'none' as const },
+					props: { terminal: 'start' as const, normalizedAnchor: { x: 0.5, y: 1 }, isExact: false, isPrecise: false, snap: 'none' as const },
 				},
 				{
 					id: createBindingId(),
@@ -190,7 +190,7 @@ function getBlockShapes(
 				id: createId(),
 				x: offset.x + bounds.x + 12,
 				y: offset.y + bounds.y + 8,
-				text: `alt ${block.branches[0]?.label ?? 'Condition'}`,
+				text: `alt ${block.branches[0]?.label ?? DEFAULT_SEQUENCE_ALT_LABEL}`,
 				props: { size: 's' },
 			})
 		)

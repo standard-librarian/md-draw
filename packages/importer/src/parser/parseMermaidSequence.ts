@@ -2,6 +2,7 @@ import { ImportMessage, SequenceBlock, SequenceDiagramModel, SequenceParseResult
 
 const PARTICIPANT_PATTERN = /^(participant|actor)\s+([A-Za-z0-9_]+)(?:\s+as\s+(.+))?$/i
 const MESSAGE_PATTERN = /^([A-Za-z0-9_]+)\s*(-->>|->>|-->|->)\s*([A-Za-z0-9_]+)\s*:\s*(.+)$/
+export const DEFAULT_SEQUENCE_ALT_LABEL = 'Condition'
 
 export function parseMermaidSequence(input: string): SequenceParseResult {
 	const warnings: ImportMessage[] = []
@@ -30,8 +31,9 @@ export function parseMermaidSequence(input: string): SequenceParseResult {
 			participants.push({ id, label })
 			return
 		}
+		const currentLabel = participantLabels.get(id)
 		const nextLabel = label.trim()
-		if (nextLabel && participantLabels.get(id) === id && nextLabel !== id) {
+		if (nextLabel && currentLabel === id && nextLabel !== id) {
 			participantLabels.set(id, nextLabel)
 			const participant = participants.find((candidate) => candidate.id === id)
 			if (participant) participant.label = nextLabel
@@ -54,7 +56,7 @@ export function parseMermaidSequence(input: string): SequenceParseResult {
 			const block: SequenceBlock = {
 				id: `alt-${blocks.length + 1}`,
 				type: 'alt',
-				branches: [{ label: altMatch[1].trim() || 'Condition', messageIds: [] }],
+				branches: [{ label: altMatch[1].trim() || DEFAULT_SEQUENCE_ALT_LABEL, messageIds: [] }],
 			}
 			blocks.push(block)
 			blockStack.push({ block, branchIndex: 0 })
