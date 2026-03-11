@@ -5,7 +5,8 @@ import { parseMermaidFlowchart } from './parseMermaidFlowchart'
 import { parseMermaidGantt } from './parseMermaidGantt'
 
 export function parseStructuredImport(input: string): StructuredParseResult {
-	const lines = input.replace(/\r\n/g, '\n').split('\n').map((line) => line.trim()).filter(Boolean)
+	const normalizedInput = normalizeStructuredImportInput(input)
+	const lines = normalizedInput.replace(/\r\n/g, '\n').split('\n').map((line) => line.trim()).filter(Boolean)
 	const firstMeaningfulLine = lines.find((line) => !line.startsWith('%%'))
 
 	if (!firstMeaningfulLine) {
@@ -18,13 +19,19 @@ export function parseStructuredImport(input: string): StructuredParseResult {
 		}
 	}
 
-	if (/^flowchart\b/i.test(firstMeaningfulLine)) return parseMermaidFlowchart(input)
-	if (/^gantt\b/i.test(firstMeaningfulLine)) return parseMermaidGantt(input)
-	if (looksLikeMarkdownTable(lines)) return parseMarkdownTable(input)
-	return parseMarkdownText(input)
+	if (/^flowchart\b/i.test(firstMeaningfulLine)) return parseMermaidFlowchart(normalizedInput)
+	if (/^gantt\b/i.test(firstMeaningfulLine)) return parseMermaidGantt(normalizedInput)
+	if (looksLikeMarkdownTable(lines)) return parseMarkdownTable(normalizedInput)
+	return parseMarkdownText(normalizedInput)
 }
 
 function looksLikeMarkdownTable(lines: string[]) {
 	if (lines.length < 2) return false
 	return /\|/.test(lines[0]) && /^\|?[\s:|\-]+\|?$/.test(lines[1])
+}
+
+export function normalizeStructuredImportInput(input: string) {
+	const normalized = input.replace(/\r\n/g, '\n')
+	const match = /^\s*(```|~~~)mermaid[^\n]*\n([\s\S]*?)\n\1\s*$/.exec(normalized)
+	return match ? match[2] : input
 }

@@ -63,6 +63,22 @@ describe('importStructuredContent', () => {
     Next.js + Go API + PostgreSQL]`)
 		expect(result.errors).toHaveLength(0)
 	})
+
+	it('imports fenced Mermaid flowcharts into editable shapes', () => {
+		const editor = createMockEditor()
+		const result = importStructuredContent(
+			editor as any,
+			`~~~mermaid
+flowchart TD
+    A[Two different models]
+    A --> B[Centralized IdP model]
+    A --> C[Local OS auth model]
+~~~`
+		)
+		expect(result.createdShapeIds.length).toBeGreaterThan(0)
+		expect(editor.getCurrentPageShapes().filter((shape: any) => shape.type === 'geo')).toHaveLength(3)
+		expect(editor.getCurrentPageShapes().filter((shape: any) => shape.type === 'arrow')).toHaveLength(2)
+	})
 })
 
 function createMockEditor() {
